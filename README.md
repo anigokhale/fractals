@@ -11,4 +11,4 @@ This program allows for many different starting parameters, the most important o
 
 Below are some examples of fractals generated using this program. Happy generating!
 
-![alt text](https://github.com/[anigokhale]/[fractals]/blob/[main]/generated-images/mandelbrot.png?raw=true)
+![plot](./generated-images/mandelbrot.png)
