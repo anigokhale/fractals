@@ -1,3 +1,6 @@
+//I basically just replaced all the floats in the PVector class with doubles for more precision on zoomed-in fractals
+
+
 /* -*- mode: java; c-basic-offset: 2; indent-tabs-mode: nil -*- */
 
 /*
