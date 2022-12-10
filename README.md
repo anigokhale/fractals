@@ -12,3 +12,9 @@ This program allows for many different starting parameters, the most important o
 Below are some examples of fractals generated using this program. Happy generating!
 
 ![plot](./generated-images/mandelbrot.png)
+![plot](./generated-images/dutchman.png)
+![plot](./generated-images/spears_of_chaos.png)
+![plot](./generated-images/the_depths.png)
+![plot](./generated-images/mandelbrot.png)
+![plot](./generated-images/curls.png)
+![plot](./generated-images/moth.png)
