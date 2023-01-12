@@ -9,10 +9,10 @@ but for now it has to be run using the IDE.
 import javax.swing.*;
 
 //left, right, bottom, and top bounds (where the boundaries of the screen map to)
-double left = -1;
-double right = 1;
-double bottom = -1;
-double top = 1;
+double left = -1.8;
+double right = 1.8;
+double bottom = -1.5;
+double top = 1.5;
 //current angular offset for frame in radians, for example angle of PI/2 would rotate screen by 90 deg
 double angle = 0;
 //how much the angle changes using keyboard commands
@@ -22,9 +22,20 @@ int maxIter = 100;
 //number of lines to draw during phase line display
 int numLines = 10;
 
+//Stored image and displayed image
+PImage img, dispImg;
+//width and height of stored image (how good is the resolution)
+int imgWidth = 1920, imgHeight = 1080;
+//initial coordinates for rendering display image
+float imgX = 0, imgY = 0;
+//boolean that keeps track of when to redraw the fractal after a view change
+boolean repaint = false;
+//setthing this to true renders the image, auto-prompts for filename, saves image and quits program
+boolean autoSave = false;
+
 //draw phase display colors
 boolean phaseDisplay = false;
-//display the frame rate
+//draw framerate on screen
 boolean drawFrameRate = false;
 //current vector used for iteration constant
 PVector current = new PVector(0, 0);
@@ -32,24 +43,39 @@ PVector current = new PVector(0, 0);
 void setup() {
   fullScreen();
   pixelDensity(displayDensity());
+  img = createImage(imgWidth, imgHeight, RGB);
+  dispImg = createImage(imgWidth, imgHeight, RGB);
   colorMode(HSB, 360);
   //comment this out if you want dynamic bounds, otherwise the right and left bounds are scaled automatically to preserve 1:1 scale
   left = -width * ((top - bottom) / height)/2;
   right = width * ((top - bottom) / height)/2;
+  
+  //initial render of image
+  paintImage();
+  
+  //if autosave option selected, then save picture and exit
+  if (autoSave) {
+    savePicture();
+    noLoop();
+    exit();
+  }
 }
 
 void draw() {
-  loadPixels();
-  for (int i = 0; i < width; i++) {
-    for (int j = 0; j < height; j++) {
-      //assign mapped a and b values to current vector
-      current.x = map(i, 0, width, left, right);
-      current.y = map(j, 0, height, bottom, top);
-      //assign each pixel color according to iteration algorithm
-      pixels[j*width+i] = findColor(current);
-    }
+  background(0);
+  
+  //repaints the image if a view change has occured
+  if (!mousePressed && repaint) {
+    paintImage();
+    repaint = false;
+    imgX = 0;
+    imgY = 0;
   }
-  updatePixels();
+  //makes display image a copy of rendered image, resizes, and displays
+  dispImg = img.copy();
+  dispImg.resize(width, height);
+  image(dispImg, imgX, imgY);
+  
   //draw phase lines if left mouse button is pressed
   if (mousePressed && mouseButton == LEFT) {
     drawLines();
@@ -64,6 +90,22 @@ void draw() {
     textAlign(LEFT, TOP);
     text("Framerate: " + frameRate, 0, 20);
   }
+}
+
+//paints image with fractal generator algorithm
+void paintImage() {
+  img.loadPixels();
+  for (int i = 0; i < img.width; i++) {
+    for (int j = 0; j < img.height; j++) {
+      //assign mapped a and b values to current vector
+      current.x = map(i, 0, img.width, left, right);
+      current.y = map(j, 0, img.height, top, bottom);
+      //assign each pixel color according to iteration algorithm
+      img.pixels[j*img.width+i] = findColor(current);
+    }
+    if (autoSave) println(100*(float)i/img.width);
+  }
+  img.updatePixels();
 }
 
 //function shows phase lines at mouse cursor
@@ -85,19 +127,24 @@ void drawLines() {
 //save a snap of the screen to generated images folder with custom filename
 void savePicture() {
   String filename = JOptionPane.showInputDialog("Enter filename");
-  if (filename != null) save("generated-images/" + filename + ".png");
+  if (filename != null) img.save("generated-images/" + filename + ".png");
 }
 
 //pan screen if mouse is dragged
 void mouseDragged() {
-  double xFactor = (right - left) * .01;
-  double yFactor = (top - bottom) * .01;
   if (mouseButton == CENTER) {
-    left -= xFactor*(mouseX - pmouseX);
-    right -= xFactor*(mouseX - pmouseX);
-    bottom -= yFactor*(mouseY - pmouseY);
-    top -= yFactor*(mouseY - pmouseY);
+    imgX += (mouseX - pmouseX);
+    imgY += (mouseY - pmouseY);
+    
+    double xShift = map(mouseX - pmouseX, 0, width, 0, left - right);
+    double yShift = map(mouseY - pmouseY, 0, height, 0, top - bottom);
+    
+    left += xShift;
+    right += xShift;
+    bottom += yShift;
+    top += yShift;
   }
+  repaint = true;
 }
 
 //print current mapped coordinates to console if right mouse button is clicked
@@ -151,7 +198,7 @@ void mouseWheel(MouseEvent event) {
   //zoom in
   if (e < 0) {
     double mX = map(mouseX, 0, width, left, right);
-    double mY = map(mouseY, 0, height, bottom, top);
+    double mY = map(mouseY, 0, height, top, bottom);
 
     left += xFactor * (mX - left);
     right -= xFactor * (right - mX);
@@ -161,21 +208,22 @@ void mouseWheel(MouseEvent event) {
   //zoom out
   else if (e > 0) {
     double mX = map(mouseX, 0, width, left, right);
-    double mY = map(mouseY, 0, height, bottom, top);
+    double mY = map(mouseY, 0, height, top, bottom);
 
     left -= xFactor * (mX - left);
     right += xFactor * (right - mX);
     bottom -= yFactor * (mY - bottom);
     top += yFactor * (top - mY);
   }
+  repaint = true;
 }
 
-//current iteration rule, default "square(z).add(c)" makes mandelbrot.
+//current iteration rule, default "return square(z).add(c)" makes mandelbrot.
 //use PVector functions and custom functions in "functions" tab to do cool stuff
 //PS the commented out manual rule makes the burning ship fractal
 PVector function(PVector z, PVector c) {
   //double x = z.x*z.x - z.y*z.y + c.x;
-  //double y = 2*Math.abs(z.x*z.y) + c.y;
+  //double y = -2*Math.abs(z.x*z.y) + c.y;
   //return new PVector(x, y);
 
   return square(z).add(c);
@@ -211,7 +259,7 @@ color findColor(PVector c) {
   if (i >= maxIter) {
     //if phaseDisplay, then color interestingly
     if (phaseDisplay) {
-      return color((int)map(change.mag(), 0, pos.mag(), 0, 360), 360, 150);
+      return color((int)map(change.mag(), 0, pos.mag(), 0, 272), 360, 150);
     } 
     //otherwise color it black
     else return color(#000000);
@@ -220,11 +268,11 @@ color findColor(PVector c) {
     double col = map(i, 0, maxIter, 0, 1);
     //interesing colors
     if (phaseDisplay) {
-      return color((int)map(change.mag(), 0, 10, 0, 360), 360, (int)map(Math.pow(col, 0.75), 0, 1, 0, 450));
+      return color((int)map(change.mag(), 0, 10, 0, 360), 360, (int)map(Math.pow(col, 0.4), 0, 1, 0, 360));
     } 
     //grayscale or monochromatic based on iteration variable
     else {
-      return color(122, 360, (int)map(Math.pow(col, 0.85), 0, 1, 0, 450));
+      return color(0, 0, (int)map(Math.pow(col, 0.4), 0, 1, 0, 360));
     }
   }
 }
