@@ -1,18 +1,18 @@
 /*********************************************************************************
-
-This program runs the fractal generation program using the variables defined here.
-Sometime in the future I hope to make a UI so this program can be run as an exe, 
-but for now it has to be run using the IDE.
-
-*********************************************************************************/
+ 
+ This program runs the fractal generation program using the variables defined here.
+ Sometime in the future I hope to make a UI so this program can be run as an exe,
+ but for now it has to be run using the IDE.
+ 
+ *********************************************************************************/
 
 import javax.swing.*;
 
 //left, right, bottom, and top bounds (where the boundaries of the screen map to)
-double left = -1.8;
+double left = -2.7;
 double right = 1.8;
-double bottom = -1.5;
-double top = 1.5;
+double bottom = -1.3;
+double top = 1.3;
 //current angular offset for frame in radians, for example angle of PI/2 would rotate screen by 90 deg
 double angle = 0;
 //how much the angle changes using keyboard commands
@@ -25,9 +25,9 @@ int numLines = 10;
 //Stored image and displayed image
 PImage img, dispImg;
 //width and height of stored image (how good is the resolution)
-int imgWidth = 1920, imgHeight = 1080;
+int imgWidth = 500, imgHeight = 250;
 //initial coordinates for rendering display image
-float imgX = 0, imgY = 0;
+double imgX = 0, imgY = 0;
 //boolean that keeps track of when to redraw the fractal after a view change
 boolean repaint = false;
 //setthing this to true renders the image, auto-prompts for filename, saves image and quits program
@@ -41,18 +41,19 @@ boolean drawFrameRate = false;
 PVector current = new PVector(0, 0);
 
 void setup() {
+  optionsPane();
   fullScreen();
   pixelDensity(displayDensity());
   img = createImage(imgWidth, imgHeight, RGB);
   dispImg = createImage(imgWidth, imgHeight, RGB);
   colorMode(HSB, 360);
   //comment this out if you want dynamic bounds, otherwise the right and left bounds are scaled automatically to preserve 1:1 scale
-  left = -width * ((top - bottom) / height)/2;
-  right = width * ((top - bottom) / height)/2;
-  
+  //left = -width * ((top - bottom) / height)/2;
+  right = left + width * ((top - bottom) / height);
+
   //initial render of image
   paintImage();
-  
+
   //if autosave option selected, then save picture and exit
   if (autoSave) {
     savePicture();
@@ -63,7 +64,7 @@ void setup() {
 
 void draw() {
   background(0);
-  
+
   //repaints the image if a view change has occured
   if (!mousePressed && repaint) {
     paintImage();
@@ -74,8 +75,8 @@ void draw() {
   //makes display image a copy of rendered image, resizes, and displays
   dispImg = img.copy();
   dispImg.resize(width, height);
-  image(dispImg, imgX, imgY);
-  
+  image(dispImg, (int)imgX, (int)imgY);
+
   //draw phase lines if left mouse button is pressed
   if (mousePressed && mouseButton == LEFT) {
     drawLines();
@@ -103,7 +104,7 @@ void paintImage() {
       //assign each pixel color according to iteration algorithm
       img.pixels[j*img.width+i] = findColor(current);
     }
-    if (autoSave) println(100*(float)i/img.width);
+    if (autoSave) println(100*(float)i/img.width + "% done");
   }
   img.updatePixels();
 }
@@ -135,10 +136,10 @@ void mouseDragged() {
   if (mouseButton == CENTER) {
     imgX += (mouseX - pmouseX);
     imgY += (mouseY - pmouseY);
-    
+
     double xShift = map(mouseX - pmouseX, 0, width, 0, left - right);
     double yShift = map(mouseY - pmouseY, 0, height, 0, top - bottom);
-    
+
     left += xShift;
     right += xShift;
     bottom += yShift;
@@ -164,10 +165,12 @@ void keyReleased() {
     top = 5;
     left = -width * ((top - bottom) / height)/2;
     right = width * ((top - bottom) / height)/2;
+    repaint = true;
   }
   //toggle phase display if p key is pressed
   else if (key == 'p') {
     phaseDisplay = !phaseDisplay;
+    repaint = true;
   }
   //toggle framerate display if f key is pressed
   else if (key == 'f') {
@@ -176,10 +179,22 @@ void keyReleased() {
   //if left arrow is pressed, rotate image to the left
   else if (keyCode == LEFT) {
     angle -= changeAngle;
+    repaint = true;
   }
   //if right arrow is pressed, rotate image to the right
   else if (keyCode == RIGHT) {
     angle += changeAngle;
+    repaint = true;
+  } else if (keyCode == UP) {
+    imgWidth *= 1.5;
+    imgHeight *= 1.5;
+    img.resize(imgWidth, imgHeight);
+    repaint = true;
+  } else if (keyCode == DOWN) {
+    imgWidth /= 1.5;
+    imgHeight /= 1.5;
+    img.resize(imgWidth, imgHeight);
+    repaint = true;
   }
   //print current bounds and angle offset to console if b key is pressed
   else if (key == 'b') {
@@ -222,11 +237,11 @@ void mouseWheel(MouseEvent event) {
 //use PVector functions and custom functions in "functions" tab to do cool stuff
 //PS the commented out manual rule makes the burning ship fractal
 PVector function(PVector z, PVector c) {
-  //double x = z.x*z.x - z.y*z.y + c.x;
-  //double y = -2*Math.abs(z.x*z.y) + c.y;
-  //return new PVector(x, y);
+  double x = z.x*z.x - z.y*z.y + c.x;
+  double y = -2*Math.abs(z.x*z.y) + c.y;
+  return new PVector(x, y);
 
-  return square(z).add(c);
+  //return powerComplex(cosComplex(z), tanComplex(z)).add(c);
 }
 
 //coloring algorithm for each point on the screen
@@ -234,7 +249,9 @@ color findColor(PVector c) {
   //initial position of z-vector used in iteration
   PVector pos = new PVector(0, 0);
   //rotate the c-vector used in iteration by the current angle offset
+  c = c.sub(new PVector((right+left)/2, (top + bottom)/2));
   c = c.rotate(-angle);
+  c = c.add(new PVector((right+left)/2, (top + bottom)/2));
 
   //variable for current number of iterations
   int i = 0;
@@ -251,16 +268,16 @@ color findColor(PVector c) {
     //increment number of iterations
     i++;
   }
-  
-  //for the next part, the phase display coloring is kind of a mess right now. 
+
+  //for the next part, the phase display coloring is kind of a mess right now.
   //maybe in the future I'll make it more generalized/easier to read, but for now coloring is very custom
-  
+
   //check if the iteration stayed within bounds the whole time (z-vector did not blow up)
   if (i >= maxIter) {
     //if phaseDisplay, then color interestingly
     if (phaseDisplay) {
       return color((int)map(change.mag(), 0, pos.mag(), 0, 272), 360, 150);
-    } 
+    }
     //otherwise color it black
     else return color(#000000);
   } else {
@@ -269,7 +286,7 @@ color findColor(PVector c) {
     //interesing colors
     if (phaseDisplay) {
       return color((int)map(change.mag(), 0, 10, 0, 360), 360, (int)map(Math.pow(col, 0.4), 0, 1, 0, 360));
-    } 
+    }
     //grayscale or monochromatic based on iteration variable
     else {
       return color(0, 0, (int)map(Math.pow(col, 0.4), 0, 1, 0, 360));
